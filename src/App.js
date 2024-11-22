@@ -8,8 +8,9 @@ const App = () => {
   const [forecast, setForecast] = useState([]);
   const [fullForecast, setFullForecast] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [selectedDayData, setSelectedDayData] = useState([]);
+  const [selectedDays, setSelectedDays] = useState([]);
+  const [selectedDayData, setSelectedDayData] = useState({});
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const fetchWeatherData = async (city) => {
     const APIKey = "cc23806e4866d2cff183c6d1907c91a2";
@@ -48,16 +49,30 @@ const App = () => {
     setLoading(false);
   };
 
-  const handleDayChange = (day) => {
-    setSelectedDay(day);
+  const handleDaySelection = (day) => {
+    setSelectedDays((prevSelected) =>
+      prevSelected.includes(day)
+        ? prevSelected.filter((d) => d !== day)
+        : [...prevSelected, day]
+    );
+  };
 
-    const filteredData = fullForecast.filter((item) => {
-      const date = new Date(item.dt_txt);
-      const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
-      return dayName === day;
-    });
+  const fetchSelectedDayData = () => {
+    const groupedData = selectedDays.reduce((acc, day) => {
+      const dayData = fullForecast.filter((item) => {
+        const date = new Date(item.dt_txt);
+        const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+        return dayName === day;
+      });
 
-    setSelectedDayData(filteredData);
+      if (dayData.length > 0) {
+        acc[day] = dayData; 
+      }
+
+      return acc;
+    }, {});
+
+    setSelectedDayData(groupedData); 
   };
 
   return (
@@ -67,41 +82,79 @@ const App = () => {
         {loading && <p className="text-center text-blue-500">Loading....</p>}
         {currentWeather && <CurrentWeather data={currentWeather} />}
         {forecast.length > 0 && (
-          <div className="text-center py-6">
-            <label htmlFor="forecast-dropdown" className="block mb-2 font-semibold">
-              Select a day for detailed forecast:
+          <div className="text-center py-6 relative">
+            <label htmlFor="forecast-dropdown" className="block mb-2 font-bold">
+              Select days for detailed forecast
             </label>
-            <select
-              id="forecast-dropdown"
-              className="py-2 px-4 border rounded-md bg-white text-gray-800"
-              onChange={(e) => handleDayChange(e.target.value)}
+            <div
+              className="py-2 px-4 border rounded-md bg-white text-gray-800 cursor-pointer relative"
+              onClick={() => setDropdownOpen((prev) => !prev)}
             >
-              <option value=""> Select a Day </option>
-              {forecast.map((item, index) => (
-                <option key={index} value={item.date}>
-                  {item.date} - {item.temp}°C
-                </option>
-              ))}
-            </select>
+              {selectedDays.length > 0
+                ? selectedDays.join(", ")
+                : "Select Days"}
+              <div
+                className={`absolute left-0 top-full mt-2 w-full border bg-white shadow-lg rounded-md ${
+                  dropdownOpen ? "block" : "hidden"
+                }`}
+              >
+                {forecast.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center px-4 py-2 hover:bg-gray-100"
+                  >
+                    <input
+                      type="checkbox"
+                      id={`day-${index}`}
+                      className="mr-2"
+                      checked={selectedDays.includes(item.date)}
+                      onChange={() => handleDaySelection(item.date)}
+                    />
+                    <label htmlFor={`day-${index}`} className="cursor-pointer">
+                      {item.date} - {item.temp}°C
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button
+              className="mt-4 py-2 px-4 bg-blue-500 text-white rounded-md"
+              onClick={fetchSelectedDayData}
+            >
+              Show Selected Day Data
+            </button>
           </div>
         )}
-        {selectedDay && (
+        {Object.keys(selectedDayData).length > 0 && (
           <div className="py-6">
             <h2 className="text-center text-lg font-semibold">
-              3-Hour Forecast for {selectedDay}
+              3-Hour Forecast for Selected Days
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {selectedDayData.map((item, index) => (
-                <div key={index} className="p-4 border rounded-md bg-white">
-                  <p>{new Date(item.dt_txt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</p>
-                  <img
-                    src={`http://openweathermap.org/img/wn/${item.weather[0].icon}@2x.png`}
-                    alt="weather-icon"
-                  />
-                  <p>{Math.round(item.main.temp)}°C</p>
+            {Object.keys(selectedDayData).map((day) => (
+              <div key={day} className="mb-6">
+                <h3 className="text-xl font-bold text-center mb-4">{day}</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {selectedDayData[day].map((item, index) => (
+                    <div
+                      key={index}
+                      className="p-4 border rounded-md bg-white text-center"
+                    >
+                      <p>
+                        {new Date(item.dt_txt).toLocaleTimeString("en-US", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                      <img
+                        src={`http://openweathermap.org/img/wn/${item.weather[0].icon}@2x.png`}
+                        alt="weather-icon"
+                      />
+                      <p>{Math.round(item.main.temp)}°C</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         )}
       </main>
