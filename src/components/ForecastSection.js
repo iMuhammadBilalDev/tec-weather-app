@@ -6,7 +6,7 @@ const ForecastSection = ({ data, onDayClick }) => (
       <div
         key={index}
         className="cursor-pointer p-4 m-2 border rounded-md bg-white hover:bg-gray-200"
-        onClick={() => onDayClick(item.date)} // Click to show 3-hour data
+        onClick={() => onDayClick(item.date)} 
       >
         <p className="font-semibold">{item.date}</p>
         <img src={item.icon} alt="weather-icon" />
