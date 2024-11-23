@@ -12,8 +12,10 @@ const App = () => {
   const [selectedDayData, setSelectedDayData] = useState({});
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  const APIKey = "cc23806e4866d2cff183c6d1907c91a2";
+
+  // Function to fetch weather by city name
   const fetchWeatherData = async (city) => {
-    const APIKey = "cc23806e4866d2cff183c6d1907c91a2";
     const currentWeatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${APIKey}`;
     const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&units=metric&appid=${APIKey}`;
 
@@ -49,6 +51,57 @@ const App = () => {
     setLoading(false);
   };
 
+  // Function to fetch weather by current location
+  const fetchWeatherByLocation = async () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const currentWeatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=${APIKey}`;
+        const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&units=metric&appid=${APIKey}`;
+
+        setLoading(true);
+
+        try {
+          const currentResponse = await axios.get(currentWeatherUrl);
+          setCurrentWeather(currentResponse.data);
+
+          const forecastResponse = await axios.get(forecastUrl);
+          const forecastData = forecastResponse.data.list;
+
+          setFullForecast(forecastData);
+
+          const uniqueForecast = forecastData.reduce((acc, current) => {
+            const date = new Date(current.dt_txt);
+            const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+            if (!acc.find((item) => item.date === dayName)) {
+              acc.push({
+                date: dayName,
+                temp: Math.round(current.main.temp),
+                icon: `http://openweathermap.org/img/wn/${current.weather[0].icon}@2x.png`,
+              });
+            }
+            return acc;
+          }, []);
+          setForecast(uniqueForecast.slice(0, 7));
+        } catch (error) {
+          console.error("Error fetching weather data by location:", error);
+          alert("Could not fetch weather data for your location. Please try again.");
+        }
+
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        alert("Failed to get your location. Please enable location services and try again.");
+      }
+    );
+  };
+
   const handleDaySelection = (day) => {
     setSelectedDays((prevSelected) =>
       prevSelected.includes(day)
@@ -66,19 +119,27 @@ const App = () => {
       });
 
       if (dayData.length > 0) {
-        acc[day] = dayData; 
+        acc[day] = dayData;
       }
 
       return acc;
     }, {});
 
-    setSelectedDayData(groupedData); 
+    setSelectedDayData(groupedData);
   };
 
   return (
     <div className="bg-gray-100 min-h-screen">
       <Header onSearch={fetchWeatherData} />
       <main className="py-6">
+        <div className="text-center">
+          <button
+            className="mb-4 py-2 px-4 bg-green-500 text-white rounded-md"
+            onClick={fetchWeatherByLocation}
+          >
+            Use Current Location
+          </button>
+        </div>
         {loading && <p className="text-center text-blue-500">Loading....</p>}
         {currentWeather && <CurrentWeather data={currentWeather} />}
         {forecast.length > 0 && (
